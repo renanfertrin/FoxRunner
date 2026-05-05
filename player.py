@@ -30,6 +30,8 @@ class Player:
         self.rect.x = PLAYER_X
         self.rect.bottom = self.ground_y
 
+        self.hitbox = self.rect.copy()
+
         self.velocity_y = 0
         self.jumps = 0
         self.max_jumps = 2
@@ -42,12 +44,7 @@ class Player:
             if file.endswith(".png"):
                 path = os.path.join(folder_path, file)
                 image = pygame.image.load(path).convert_alpha()
-
-                image = pygame.transform.scale(
-                    image,
-                    (PLAYER_WIDTH, PLAYER_HEIGHT)
-                )
-
+                image = pygame.transform.scale(image, (PLAYER_WIDTH, PLAYER_HEIGHT))
                 images.append(image)
 
         return images
@@ -57,13 +54,13 @@ class Player:
             self.velocity_y = JUMP_FORCE
             self.jumps += 1
             return True
-
         return False
 
     def update(self):
         self.apply_gravity()
         self.update_state()
         self.animate()
+        self.update_hitbox()
 
     def apply_gravity(self):
         self.velocity_y += GRAVITY
@@ -88,7 +85,6 @@ class Player:
                 self.frame_index = 0
 
             frame = self.animations["run"][int(self.frame_index)]
-
         else:
             total_frames = len(self.animations["jump"])
 
@@ -102,9 +98,21 @@ class Player:
 
         self.image = frame
         self.rect = self.image.get_rect()
-
         self.rect.x = old_x
         self.rect.bottom = old_bottom
 
+    def update_hitbox(self):
+        self.hitbox = self.rect.copy()
+
+        self.hitbox.inflate_ip(
+            -int(self.rect.width * 0.3),
+            -int(self.rect.height * 0.2)
+        )
+
+        self.hitbox.y += int(self.rect.height * 0.05)
+
     def draw(self, screen):
         screen.blit(self.image, self.rect)
+
+        # HITBOX DO PLAYER
+        pygame.draw.rect(screen, (255, 0, 0), self.hitbox, 2)

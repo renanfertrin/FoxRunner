@@ -2,7 +2,7 @@ import os
 import random
 import pygame
 
-from const import WIDTH, LEVEL_SPEED
+from const import WINDOW_WIDTH, LEVEL_SPEED
 
 
 class Obstacle:
@@ -15,7 +15,7 @@ class Obstacle:
         self.image = random.choice(self.images)
         self.rect = self.image.get_rect()
 
-        self.rect.x = WIDTH
+        self.rect.x = WINDOW_WIDTH
         self.rect.bottom = self.ground_y
 
         self.speed = LEVEL_SPEED[level]

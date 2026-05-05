@@ -6,26 +6,25 @@ from obstacle import Obstacle
 from menu import Menu
 from background import ParallaxBackground
 from sound_manager import SoundManager
+from score_manager import ScoreManager
 
 
 class Game:
     def __init__(self):
         pygame.init()
 
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption("Fox Runner")
 
         self.clock = pygame.time.Clock()
         self.running = True
         self.state = "menu"
 
-        self.menu = Menu()
+        self.score_manager = ScoreManager()
+        self.menu = Menu(self.score_manager)
+
         self.sound = SoundManager()
         self.apply_volume_settings()
-
-        self.font = pygame.font.SysFont("arial", FONT_SCORE_SIZE, bold=True)
-        self.info_font = pygame.font.SysFont("arial", FONT_INFO_SIZE)
-        self.option_font = pygame.font.SysFont("arial", 45, bold=True)
 
         self.pause_options = ["RESUME", "MAIN MENU"]
         self.pause_selected = 0
@@ -33,7 +32,22 @@ class Game:
         self.end_options = ["RESTART", "MAIN MENU"]
         self.end_selected = 0
 
+        self.score_saved = False
+
         self.reset_game()
+
+    def draw_text(self, screen, size, text, color, center):
+        font = pygame.font.SysFont("Lucida Sans Typewriter", size, bold=True)
+        surf = font.render(text, True, color).convert_alpha()
+        rect = surf.get_rect(center=center)
+        screen.blit(surf, rect)
+
+    def draw_text_left(self, screen, size, text, color, pos):
+        font = pygame.font.SysFont("Lucida Sans Typewriter", size, bold=True)
+        surf = font.render(text, True, color).convert_alpha()
+        rect = surf.get_rect(topleft=pos)
+        screen.blit(surf, rect)
+        return rect
 
     def get_ground_y(self):
         return LEVEL_GROUND_Y.get(self.level, GROUND_Y)
@@ -54,9 +68,15 @@ class Game:
 
         self.game_over = False
         self.victory = False
+        self.score_saved = False
 
         self.pause_selected = 0
         self.end_selected = 0
+
+    def save_current_score_once(self):
+        if not self.score_saved:
+            self.score_manager.add_score(self.score)
+            self.score_saved = True
 
     def next_level(self):
         self.level += 1
@@ -70,7 +90,7 @@ class Game:
 
     def run(self):
         while self.running:
-            self.clock.tick(FPS)
+            self.clock.tick(WINDOW_FPS)
             self.events()
             self.update()
             self.draw()
@@ -231,7 +251,7 @@ class Game:
 
         elif self.level == 4 and self.score >= LEVEL_GOALS[4]:
             self.victory = True
-            self.menu.update_score(self.score)
+            self.save_current_score_once()
 
         self.spawn_timer += 1
 
@@ -247,9 +267,9 @@ class Game:
         for obstacle in self.obstacles:
             obstacle.update()
 
-            if self.player.rect.colliderect(obstacle.hitbox):
+            if self.player.hitbox.colliderect(obstacle.hitbox):
                 self.game_over = True
-                self.menu.update_score(self.score)
+                self.save_current_score_once()
                 self.sound.play_hit()
 
         self.obstacles = [
@@ -283,23 +303,29 @@ class Game:
         for obstacle in self.obstacles:
             obstacle.draw(self.screen)
 
-        score_shadow = self.font.render(f"{self.score}", True, COLOR_BLACK)
-        score_text = self.font.render(f"{self.score}", True, COLOR_TITLE)
-
-        score_x = WIDTH // 2 - score_text.get_width() // 2
-
-        self.screen.blit(score_shadow, (score_x + 3, 23))
-        self.screen.blit(score_text, (score_x, 20))
-
-        level_text = self.info_font.render(f"LEVEL {self.level}", True, COLOR_LEVEL)
-        self.screen.blit(level_text, (20, 20))
-
-        controls = self.info_font.render(
-            "SPACE = PULAR | ESC = PAUSE",
-            True,
-            COLOR_WHITE
+        self.draw_text(
+            self.screen,
+            FONT_SCORE_SIZE,
+            str(self.score),
+            COLOR_TITLE,
+            (WINDOW_WIDTH // 2, 60)
         )
-        self.screen.blit(controls, (WIDTH // 2 - controls.get_width() // 2, HEIGHT - 40))
+
+        self.draw_text_left(
+            self.screen,
+            FONT_INFO_SIZE,
+            f"LEVEL {self.level}",
+            COLOR_LEVEL,
+            (20, 20)
+        )
+
+        self.draw_text(
+            self.screen,
+            FONT_INFO_SIZE,
+            "SPACE = PULAR | ESC = PAUSE",
+            COLOR_WHITE,
+            (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 30)
+        )
 
         if self.game_over:
             self.draw_end_screen("GAME OVER", COLOR_RED)
@@ -308,57 +334,75 @@ class Game:
             self.draw_end_screen("YOU WIN!", COLOR_GREEN)
 
     def draw_pause_menu(self):
-        overlay = pygame.Surface((WIDTH, HEIGHT))
+        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
         overlay.set_alpha(170)
         overlay.fill(COLOR_BLACK)
         self.screen.blit(overlay, (0, 0))
 
-        title = self.font.render("PAUSED", True, COLOR_TITLE)
-        self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 150))
+        self.draw_text(
+            self.screen,
+            FONT_SCORE_SIZE,
+            "PAUSED",
+            COLOR_TITLE,
+            (WINDOW_WIDTH // 2, 150)
+        )
 
         self.pause_option_rects = []
 
         for index, option in enumerate(self.pause_options):
             color = COLOR_SELECTED if index == self.pause_selected else COLOR_WHITE
-            text = self.option_font.render(option, True, color)
 
-            x = WIDTH // 2 - text.get_width() // 2
-            y = 270 + index * 70
+            rect = self.draw_text_left(
+                self.screen,
+                45,
+                option,
+                color,
+                (WINDOW_WIDTH // 2 - 160, 270 + index * 70)
+            )
 
-            self.screen.blit(text, (x, y))
-            self.pause_option_rects.append(text.get_rect(topleft=(x, y)))
+            self.pause_option_rects.append(rect)
 
-        help_text = self.info_font.render(
+        self.draw_text(
+            self.screen,
+            FONT_INFO_SIZE,
             "ENTER / CLICK = SELECIONAR | ESC = DESPAUSAR",
-            True,
-            COLOR_WHITE
+            COLOR_WHITE,
+            (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 70)
         )
-        self.screen.blit(help_text, (WIDTH // 2 - help_text.get_width() // 2, HEIGHT - 70))
 
     def draw_end_screen(self, message, color):
-        overlay = pygame.Surface((WIDTH, HEIGHT))
+        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
         overlay.set_alpha(120)
         overlay.fill(COLOR_BLACK)
         self.screen.blit(overlay, (0, 0))
 
-        title = self.font.render(message, True, color)
-        self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 150))
+        self.draw_text(
+            self.screen,
+            FONT_SCORE_SIZE,
+            message,
+            color,
+            (WINDOW_WIDTH // 2, 150)
+        )
 
         self.end_option_rects = []
 
         for index, option in enumerate(self.end_options):
             option_color = COLOR_SELECTED if index == self.end_selected else COLOR_WHITE
-            text = self.option_font.render(option, True, option_color)
 
-            x = WIDTH // 2 - text.get_width() // 2
-            y = 270 + index * 70
+            rect = self.draw_text_left(
+                self.screen,
+                45,
+                option,
+                option_color,
+                (WINDOW_WIDTH // 2 - 160, 270 + index * 70)
+            )
 
-            self.screen.blit(text, (x, y))
-            self.end_option_rects.append(text.get_rect(topleft=(x, y)))
+            self.end_option_rects.append(rect)
 
-        help_text = self.info_font.render(
+        self.draw_text(
+            self.screen,
+            FONT_INFO_SIZE,
             "ENTER / CLICK = SELECIONAR",
-            True,
-            COLOR_WHITE
+            COLOR_WHITE,
+            (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 70)
         )
-        self.screen.blit(help_text, (WIDTH // 2 - help_text.get_width() // 2, HEIGHT - 70))
