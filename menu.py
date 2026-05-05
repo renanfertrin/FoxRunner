@@ -23,18 +23,13 @@ class Menu:
 
         self.option_rects = []
 
-        # 🔥 SLIDER CONFIG
         self.slider_width = 420
         self.slider_height = 18
         self.slider_x = WINDOW_WIDTH // 2 - self.slider_width // 2
 
-        # 🔥 POSIÇÕES MELHORADAS
         self.music_slider_y = 265
         self.sfx_slider_y = 355
 
-    # =========================
-    # TEXTO
-    # =========================
     def draw_text(self, screen, text_size, text, color, center_pos):
         font = pygame.font.SysFont("Lucida Sans Typewriter", text_size, bold=True)
         surf = font.render(text, True, color).convert_alpha()
@@ -48,9 +43,6 @@ class Menu:
         screen.blit(surf, rect)
         return rect
 
-    # =========================
-    # INPUT
-    # =========================
     def handle_input(self, event, state):
         if state == "menu":
             return self.handle_menu_input(event)
@@ -63,6 +55,7 @@ class Menu:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     return "back"
+
         if state == "settings":
             return self.handle_settings_input(event)
 
@@ -136,9 +129,6 @@ class Menu:
 
         return None
 
-    # =========================
-    # SLIDERS
-    # =========================
     def music_slider_rect(self):
         return pygame.Rect(self.slider_x, self.music_slider_y, self.slider_width, self.slider_height)
 
@@ -155,9 +145,6 @@ class Menu:
         else:
             self.sfx_volume = max(0, min(1, self.sfx_volume + amount))
 
-    # =========================
-    # TELAS
-    # =========================
     def draw_menu(self, screen):
         screen.blit(self.menu_bg, (0, 0))
 
@@ -195,42 +182,44 @@ class Menu:
     def draw_score(self, screen):
         screen.blit(self.score_bg, (0, 0))
 
-        self.draw_text(
+        left_x = 80
+
+        self.draw_text_left(
             screen,
             FONT_TITLE_SIZE,
             "SCORE",
             COLOR_TITLE,
-            (WINDOW_WIDTH // 2, 80)
+            (left_x, 60)
         )
 
         best = self.score_manager.get_best_score()
 
-        self.draw_text(
+        self.draw_text_left(
             screen,
-            50,
+            42,
             f"MELHOR: {best}",
             COLOR_OPTION,
-            (WINDOW_WIDTH // 2, 170)
+            (left_x, 160)
         )
 
         scores = self.score_manager.get_scores()
 
         if not scores:
-            self.draw_text(
+            self.draw_text_left(
                 screen,
                 30,
                 "SEM SCORES AINDA",
                 COLOR_WHITE,
-                (WINDOW_WIDTH // 2, 260)
+                (left_x, 240)
             )
         else:
             for i, score in enumerate(scores[:8]):
-                self.draw_text(
+                self.draw_text_left(
                     screen,
-                    35,
-                    f"{i + 1}. {score}",
+                    30,
+                    f"{i + 1:02d} - {score}",
                     COLOR_WHITE,
-                    (WINDOW_WIDTH // 2, 240 + i * 30)
+                    (left_x, 230 + i * 34)
                 )
 
         self.draw_text(
@@ -297,15 +286,30 @@ class Menu:
             (WINDOW_WIDTH // 2, y)
         )
 
-        bar_rect = pygame.Rect(self.slider_x, slider_y, self.slider_width, self.slider_height)
+        bar_rect = pygame.Rect(
+            self.slider_x,
+            slider_y,
+            self.slider_width,
+            self.slider_height
+        )
 
         filled_width = int(self.slider_width * volume)
 
-        filled_rect = pygame.Rect(self.slider_x, slider_y, filled_width, self.slider_height)
+        filled_rect = pygame.Rect(
+            self.slider_x,
+            slider_y,
+            filled_width,
+            self.slider_height
+        )
 
         pygame.draw.rect(screen, COLOR_BLACK, bar_rect, border_radius=10)
         pygame.draw.rect(screen, COLOR_TITLE, filled_rect, border_radius=10)
         pygame.draw.rect(screen, color, bar_rect, width=3, border_radius=10)
 
         knob_x = self.slider_x + filled_width
-        pygame.draw.circle(screen, color, (knob_x, slider_y + self.slider_height // 2), 13)
+        pygame.draw.circle(
+            screen,
+            color,
+            (knob_x, slider_y + self.slider_height // 2),
+            13
+        )
