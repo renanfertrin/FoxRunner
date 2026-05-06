@@ -8,10 +8,6 @@
         "score": 2991
     },
     {
-        "name": "RENAN",
-        "score": 1525
-    },
-    {
         "name": "PLAYER",
         "score": 1182
     },
@@ -38,5 +34,9 @@
     {
         "name": "PLAYER",
         "score": 721
+    },
+    {
+        "name": "RENAN",
+        "score": 217
     }
 ]
