@@ -92,6 +92,7 @@ class Gameplay:
 
         self.obstacles = [
             obstacle for obstacle in self.obstacles
+            if not obstacle.is_out_of_screen()
         ]
 
     def draw(self, screen):
