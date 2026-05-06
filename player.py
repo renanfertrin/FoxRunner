@@ -1,6 +1,7 @@
 import os
 import pygame
 
+from entity import Entity
 from const import (
     GRAVITY,
     JUMP_FORCE,
@@ -11,8 +12,10 @@ from const import (
 )
 
 
-class Player:
+class Player(Entity):
     def __init__(self, ground_y):
+        super().__init__()
+
         self.ground_y = ground_y
 
         self.animations = {
@@ -34,7 +37,7 @@ class Player:
 
         self.velocity_y = 0
         self.jumps = 0
-        self.max_jumps = 2
+        self.max_jumps = 1
 
     def load_images(self, folder_path):
         images = []
@@ -54,6 +57,7 @@ class Player:
             self.velocity_y = JUMP_FORCE
             self.jumps += 1
             return True
+
         return False
 
     def update(self):
@@ -85,6 +89,7 @@ class Player:
                 self.frame_index = 0
 
             frame = self.animations["run"][int(self.frame_index)]
+
         else:
             total_frames = len(self.animations["jump"])
 
@@ -98,6 +103,7 @@ class Player:
 
         self.image = frame
         self.rect = self.image.get_rect()
+
         self.rect.x = old_x
         self.rect.bottom = old_bottom
 
@@ -114,5 +120,5 @@ class Player:
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
-        # HITBOX DO PLAYER
-        pygame.draw.rect(screen, (255, 0, 0), self.hitbox, 2)
+        # DEBUG HITBOX DO PLAYER
+        # pygame.draw.rect(screen, (255, 0, 0), self.hitbox, 2)

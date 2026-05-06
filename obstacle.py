@@ -2,11 +2,14 @@ import os
 import random
 import pygame
 
+from entity import Entity
 from const import WINDOW_WIDTH, LEVEL_SPEED
 
 
-class Obstacle:
+class Obstacle(Entity):
     def __init__(self, level=1, ground_y=520):
+        super().__init__()
+
         self.level = level
         self.ground_y = ground_y
 
@@ -63,4 +66,5 @@ class Obstacle:
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
-        pygame.draw.rect(screen, (255, 0, 0), self.hitbox, 2)
+        # DEBUG HITBOX DO OBSTÁCULO
+        # pygame.draw.rect(screen, (255, 0, 0), self.hitbox, 2)

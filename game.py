@@ -1,12 +1,11 @@
 import pygame
 
 from const import *
-from player import Player
-from obstacle import Obstacle
 from menu import Menu
-from background import ParallaxBackground
 from sound_manager import SoundManager
 from score_manager import ScoreManager
+from gameplay import Gameplay
+from text_helper import draw_text, draw_text_left
 
 
 class Game:
@@ -18,7 +17,7 @@ class Game:
 
         self.clock = pygame.time.Clock()
         self.running = True
-        self.state = "menu"
+        self.state = STATE_MENU
 
         self.score_manager = ScoreManager()
         self.menu = Menu(self.score_manager)
@@ -26,67 +25,59 @@ class Game:
         self.sound = SoundManager()
         self.apply_volume_settings()
 
-        self.pause_options = ["RESUME", "MAIN MENU"]
+        self.player_name = DEFAULT_PLAYER_NAME
+        self.name_input = ""
+
+        self.gameplay = Gameplay(
+            self.score_manager,
+            self.sound,
+            self.player_name
+        )
+
+        self.pause_options = PAUSE_OPTIONS
         self.pause_selected = 0
 
-        self.end_options = ["RESTART", "MAIN MENU"]
+        self.end_options = END_OPTIONS
         self.end_selected = 0
-
-        self.score_saved = False
-
-        self.reset_game()
-
-    def draw_text(self, screen, size, text, color, center):
-        font = pygame.font.SysFont("Lucida Sans Typewriter", size, bold=True)
-        surf = font.render(text, True, color).convert_alpha()
-        rect = surf.get_rect(center=center)
-        screen.blit(surf, rect)
-
-    def draw_text_left(self, screen, size, text, color, pos):
-        font = pygame.font.SysFont("Lucida Sans Typewriter", size, bold=True)
-        surf = font.render(text, True, color).convert_alpha()
-        rect = surf.get_rect(topleft=pos)
-        screen.blit(surf, rect)
-        return rect
-
-    def get_ground_y(self):
-        return LEVEL_GROUND_Y.get(self.level, GROUND_Y)
 
     def apply_volume_settings(self):
         self.sound.set_music_volume(self.menu.music_volume)
         self.sound.set_sfx_volume(self.menu.sfx_volume)
 
     def reset_game(self):
-        self.level = 1
-        self.background = ParallaxBackground(self.level)
+        final_name = self.name_input.strip().upper()
 
-        self.player = Player(self.get_ground_y())
-        self.obstacles = []
+        if final_name == "":
+            final_name = DEFAULT_PLAYER_NAME
 
-        self.spawn_timer = 0
-        self.score = 0
-
-        self.game_over = False
-        self.victory = False
-        self.score_saved = False
+        self.player_name = final_name
+        self.gameplay.set_player_name(self.player_name)
+        self.gameplay.reset()
 
         self.pause_selected = 0
         self.end_selected = 0
 
-    def save_current_score_once(self):
-        if not self.score_saved:
-            self.score_manager.add_score(self.score)
-            self.score_saved = True
+    def start_name_input(self):
+        self.name_input = ""
+        self.state = STATE_NAME_INPUT
 
-    def next_level(self):
-        self.level += 1
-        self.background = ParallaxBackground(self.level)
+    def handle_name_input_events(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.state = STATE_MENU
 
-        self.player = Player(self.get_ground_y())
-        self.obstacles.clear()
-        self.spawn_timer = 0
+            elif event.key == pygame.K_RETURN:
+                self.reset_game()
+                self.state = STATE_PLAYING
 
-        self.sound.play_next_level()
+            elif event.key == pygame.K_BACKSPACE:
+                self.name_input = self.name_input[:-1]
+
+            elif len(self.name_input) < MAX_PLAYER_NAME_LENGTH:
+                char = event.unicode.upper()
+
+                if char.isalnum():
+                    self.name_input += char
 
     def run(self):
         while self.running:
@@ -102,38 +93,40 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
 
-            if self.state in ["menu", "score", "settings"]:
+            if self.state in [STATE_MENU, STATE_SCORE, STATE_SETTINGS]:
                 action = self.menu.handle_input(event, self.state)
 
                 if action == "start":
-                    self.reset_game()
-                    self.state = "playing"
+                    self.start_name_input()
 
                 elif action == "score":
-                    self.state = "score"
+                    self.state = STATE_SCORE
 
                 elif action == "settings":
-                    self.state = "settings"
+                    self.state = STATE_SETTINGS
 
                 elif action == "exit":
                     self.running = False
 
                 elif action == "back":
-                    self.state = "menu"
+                    self.state = STATE_MENU
 
                 elif action == "volume_changed":
                     self.apply_volume_settings()
 
-            elif self.state == "playing":
+            elif self.state == STATE_NAME_INPUT:
+                self.handle_name_input_events(event)
+
+            elif self.state == STATE_PLAYING:
                 self.handle_game_events(event)
 
-            elif self.state == "paused":
+            elif self.state == STATE_PAUSED:
                 self.handle_pause_events(event)
 
     def handle_game_events(self, event):
         if event.type == pygame.KEYDOWN:
 
-            if self.game_over or self.victory:
+            if self.gameplay.game_over or self.gameplay.victory:
                 if event.key == pygame.K_UP:
                     self.end_selected = (self.end_selected - 1) % len(self.end_options)
 
@@ -146,14 +139,13 @@ class Game:
                 return
 
             if event.key == pygame.K_ESCAPE:
-                self.state = "paused"
+                self.state = STATE_PAUSED
 
             elif event.key == pygame.K_SPACE:
-                if self.player.jump():
-                    self.sound.play_jump()
+                self.gameplay.jump()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1 and (self.game_over or self.victory):
+            if event.button == 1 and (self.gameplay.game_over or self.gameplay.victory):
                 mouse_x, mouse_y = event.pos
 
                 for index, rect in enumerate(self.end_option_rects):
@@ -162,7 +154,7 @@ class Game:
                         self.execute_end_option()
 
         elif event.type == pygame.MOUSEMOTION:
-            if self.game_over or self.victory:
+            if self.gameplay.game_over or self.gameplay.victory:
                 mouse_x, mouse_y = event.pos
 
                 for index, rect in enumerate(self.end_option_rects):
@@ -173,7 +165,7 @@ class Game:
         if event.type == pygame.KEYDOWN:
 
             if event.key == pygame.K_ESCAPE:
-                self.state = "playing"
+                self.state = STATE_PLAYING
 
             elif event.key == pygame.K_UP:
                 self.pause_selected = (self.pause_selected - 1) % len(self.pause_options)
@@ -204,134 +196,101 @@ class Game:
         option = self.pause_options[self.pause_selected]
 
         if option == "RESUME":
-            self.state = "playing"
+            self.state = STATE_PLAYING
 
         elif option == "MAIN MENU":
-            self.state = "menu"
+            self.state = STATE_MENU
 
     def execute_end_option(self):
         option = self.end_options[self.end_selected]
 
         if option == "RESTART":
-            self.reset_game()
-            self.state = "playing"
+            self.start_name_input()
 
         elif option == "MAIN MENU":
-            self.state = "menu"
+            self.state = STATE_MENU
 
     def update(self):
-        if self.state == "menu":
-            self.sound.play_music("assets/sounds/musicBg.mp3")
+        if self.state == STATE_MENU:
+            self.sound.play_music(PATH_MUSIC_BG)
             return
 
-        if self.state == "score":
-            self.sound.play_music("assets/sounds/musicScore.mp3")
+        if self.state == STATE_SCORE:
+            self.sound.play_music(PATH_MUSIC_SCORE)
             return
 
-        if self.state == "settings":
-            self.sound.play_music("assets/sounds/musicBg.mp3")
+        if self.state == STATE_SETTINGS:
+            self.sound.play_music(PATH_MUSIC_BG)
             return
 
-        if self.state in ["playing", "paused"]:
-            self.sound.play_music("assets/sounds/musicLevels.mp3")
-
-        if self.state != "playing":
+        if self.state == STATE_NAME_INPUT:
+            self.sound.play_music(PATH_MUSIC_BG)
             return
 
-        if self.game_over or self.victory:
-            return
+        if self.state in [STATE_PLAYING, STATE_PAUSED]:
+            self.sound.play_music(PATH_MUSIC_LEVELS)
 
-        self.background.update()
-        self.player.update()
-
-        self.score += 1
-
-        if self.level < 4 and self.score >= LEVEL_GOALS[self.level]:
-            self.next_level()
-
-        elif self.level == 4 and self.score >= LEVEL_GOALS[4]:
-            self.victory = True
-            self.save_current_score_once()
-
-        self.spawn_timer += 1
-
-        if self.spawn_timer > 80:
-            self.obstacles.append(
-                Obstacle(
-                    level=self.level,
-                    ground_y=self.get_ground_y()
-                )
-            )
-            self.spawn_timer = 0
-
-        for obstacle in self.obstacles:
-            obstacle.update()
-
-            if self.player.hitbox.colliderect(obstacle.hitbox):
-                self.game_over = True
-                self.save_current_score_once()
-                self.sound.play_hit()
-
-        self.obstacles = [
-            obstacle for obstacle in self.obstacles
-            if obstacle.rect.right > 0
-        ]
+        if self.state == STATE_PLAYING:
+            self.gameplay.update()
 
     def draw(self):
-        if self.state == "menu":
+        if self.state == STATE_MENU:
             self.menu.draw_menu(self.screen)
 
-        elif self.state == "score":
+        elif self.state == STATE_SCORE:
             self.menu.draw_score(self.screen)
 
-        elif self.state == "settings":
+        elif self.state == STATE_SETTINGS:
             self.menu.draw_settings(self.screen)
 
-        elif self.state in ["playing", "paused"]:
-            self.draw_game()
+        elif self.state == STATE_NAME_INPUT:
+            self.draw_name_input()
 
-            if self.state == "paused":
+        elif self.state in [STATE_PLAYING, STATE_PAUSED]:
+            self.gameplay.draw(self.screen)
+
+            if self.gameplay.game_over:
+                self.draw_end_screen("GAME OVER", COLOR_RED)
+
+            if self.gameplay.victory:
+                self.draw_end_screen("YOU WIN!", COLOR_GREEN)
+
+            if self.state == STATE_PAUSED:
                 self.draw_pause_menu()
 
         pygame.display.update()
 
-    def draw_game(self):
-        self.background.draw(self.screen)
+    def draw_name_input(self):
+        self.screen.blit(self.menu.menu_bg, (0, 0))
 
-        self.player.draw(self.screen)
-
-        for obstacle in self.obstacles:
-            obstacle.draw(self.screen)
-
-        self.draw_text(
+        draw_text(
             self.screen,
-            FONT_SCORE_SIZE,
-            str(self.score),
+            FONT_TITLE_SIZE,
+            TEXT_NAME_INPUT_TITLE,
             COLOR_TITLE,
-            (WINDOW_WIDTH // 2, 60)
+            (WINDOW_WIDTH // 2, 90)
         )
 
-        self.draw_text_left(
+        name_to_show = self.name_input
+
+        if name_to_show == "":
+            name_to_show = DEFAULT_PLAYER_NAME
+
+        draw_text(
             self.screen,
-            FONT_INFO_SIZE,
-            f"LEVEL {self.level}",
-            COLOR_LEVEL,
-            (20, 20)
+            FONT_MENU_SIZE,
+            name_to_show,
+            COLOR_SELECTED,
+            (WINDOW_WIDTH // 2, 260)
         )
 
-        self.draw_text(
+        draw_text(
             self.screen,
             FONT_INFO_SIZE,
-            "SPACE = PULAR | ESC = PAUSE",
+            TEXT_NAME_INPUT_HELP,
             COLOR_WHITE,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 30)
         )
-
-        if self.game_over:
-            self.draw_end_screen("GAME OVER", COLOR_RED)
-
-        if self.victory:
-            self.draw_end_screen("YOU WIN!", COLOR_GREEN)
 
     def draw_pause_menu(self):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -339,7 +298,7 @@ class Game:
         overlay.fill(COLOR_BLACK)
         self.screen.blit(overlay, (0, 0))
 
-        self.draw_text(
+        draw_text(
             self.screen,
             FONT_SCORE_SIZE,
             "PAUSED",
@@ -352,7 +311,7 @@ class Game:
         for index, option in enumerate(self.pause_options):
             color = COLOR_SELECTED if index == self.pause_selected else COLOR_WHITE
 
-            rect = self.draw_text_left(
+            rect = draw_text_left(
                 self.screen,
                 45,
                 option,
@@ -362,7 +321,7 @@ class Game:
 
             self.pause_option_rects.append(rect)
 
-        self.draw_text(
+        draw_text(
             self.screen,
             FONT_INFO_SIZE,
             "ENTER / CLICK = SELECIONAR | ESC = DESPAUSAR",
@@ -376,7 +335,7 @@ class Game:
         overlay.fill(COLOR_BLACK)
         self.screen.blit(overlay, (0, 0))
 
-        self.draw_text(
+        draw_text(
             self.screen,
             FONT_SCORE_SIZE,
             message,
@@ -389,7 +348,7 @@ class Game:
         for index, option in enumerate(self.end_options):
             option_color = COLOR_SELECTED if index == self.end_selected else COLOR_WHITE
 
-            rect = self.draw_text_left(
+            rect = draw_text_left(
                 self.screen,
                 45,
                 option,
@@ -399,7 +358,7 @@ class Game:
 
             self.end_option_rects.append(rect)
 
-        self.draw_text(
+        draw_text(
             self.screen,
             FONT_INFO_SIZE,
             "ENTER / CLICK = SELECIONAR",
