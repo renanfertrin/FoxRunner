@@ -1,5 +1,7 @@
 import pygame
+
 from const import *
+from text_helper import draw_text, draw_text_left
 
 
 class Menu:
@@ -9,45 +11,32 @@ class Menu:
         self.options = MENU_OPTIONS
         self.selected = 0
 
-        self.settings_options = ["MUSIC VOLUME", "SFX VOLUME"]
+        self.settings_options = SETTINGS_OPTIONS
         self.selected_setting = 0
 
         self.music_volume = 0.4
         self.sfx_volume = 0.7
 
-        self.menu_bg = pygame.image.load("assets/Images/menu/menuBg.png").convert()
-        self.score_bg = pygame.image.load("assets/Images/score/scoreBg.png").convert()
+        self.menu_bg = pygame.image.load(PATH_MENU_BG).convert()
+        self.score_bg = pygame.image.load(PATH_SCORE_BG).convert()
 
         self.menu_bg = pygame.transform.scale(self.menu_bg, (WINDOW_WIDTH, WINDOW_HEIGHT))
         self.score_bg = pygame.transform.scale(self.score_bg, (WINDOW_WIDTH, WINDOW_HEIGHT))
 
         self.option_rects = []
 
-        self.slider_width = 420
-        self.slider_height = 18
+        self.slider_width = SLIDER_WIDTH
+        self.slider_height = SLIDER_HEIGHT
         self.slider_x = WINDOW_WIDTH // 2 - self.slider_width // 2
 
-        self.music_slider_y = 265
-        self.sfx_slider_y = 355
-
-    def draw_text(self, screen, text_size, text, color, center_pos):
-        font = pygame.font.SysFont("Lucida Sans Typewriter", text_size, bold=True)
-        surf = font.render(text, True, color).convert_alpha()
-        rect = surf.get_rect(center=center_pos)
-        screen.blit(surf, rect)
-
-    def draw_text_left(self, screen, text_size, text, color, pos):
-        font = pygame.font.SysFont("Lucida Sans Typewriter", text_size, bold=True)
-        surf = font.render(text, True, color).convert_alpha()
-        rect = surf.get_rect(topleft=pos)
-        screen.blit(surf, rect)
-        return rect
+        self.music_slider_y = MUSIC_SLIDER_Y
+        self.sfx_slider_y = SFX_SLIDER_Y
 
     def handle_input(self, event, state):
-        if state == "menu":
+        if state == STATE_MENU:
             return self.handle_menu_input(event)
 
-        if state == "score":
+        if state == STATE_SCORE:
             if event.type == pygame.KEYDOWN:
                 if event.key in [pygame.K_ESCAPE, pygame.K_RETURN]:
                     return "back"
@@ -56,7 +45,7 @@ class Menu:
                 if event.button == 1:
                     return "back"
 
-        if state == "settings":
+        if state == STATE_SETTINGS:
             return self.handle_settings_input(event)
 
         return None
@@ -148,7 +137,7 @@ class Menu:
     def draw_menu(self, screen):
         screen.blit(self.menu_bg, (0, 0))
 
-        self.draw_text(
+        draw_text(
             screen,
             FONT_TITLE_SIZE,
             "FOX RUNNER",
@@ -161,20 +150,20 @@ class Menu:
         for i, option in enumerate(self.options):
             color = COLOR_SELECTED if i == self.selected else COLOR_OPTION
 
-            rect = self.draw_text_left(
+            rect = draw_text_left(
                 screen,
                 FONT_MENU_SIZE,
                 option,
                 color,
-                (80, 170 + i * 80)
+                (MENU_LEFT_X, MENU_START_Y + i * MENU_SPACING_Y)
             )
 
             self.option_rects.append(rect)
 
-        self.draw_text(
+        draw_text(
             screen,
             FONT_INFO_SIZE,
-            "SETAS/MOUSE - NAVEGAR | ENTER/CLICK - SELECIONAR",
+            TEXT_MENU_HELP,
             COLOR_WHITE,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 30)
         )
@@ -184,48 +173,33 @@ class Menu:
 
         left_x = 80
 
-        self.draw_text_left(
-            screen,
-            FONT_TITLE_SIZE,
-            "SCORE",
-            COLOR_TITLE,
-            (left_x, 60)
-        )
+        draw_text_left(screen, FONT_TITLE_SIZE, "SCORE", COLOR_TITLE, (left_x, 60))
 
         best = self.score_manager.get_best_score()
 
-        self.draw_text_left(
-            screen,
-            42,
-            f"MELHOR: {best}",
-            COLOR_OPTION,
-            (left_x, 160)
-        )
+        draw_text_left(screen, 42, f"MELHOR: {best}", COLOR_OPTION, (left_x, 160))
 
         scores = self.score_manager.get_scores()
 
         if not scores:
-            self.draw_text_left(
-                screen,
-                30,
-                "SEM SCORES AINDA",
-                COLOR_WHITE,
-                (left_x, 240)
-            )
+            draw_text_left(screen, 30, "SEM SCORES AINDA", COLOR_WHITE, (left_x, 240))
         else:
-            for i, score in enumerate(scores[:8]):
-                self.draw_text_left(
+            for i, item in enumerate(scores[:8]):
+                name = item["name"]
+                score = item["score"]
+
+                draw_text_left(
                     screen,
                     30,
-                    f"{i + 1:02d} - {score}",
+                    f"{i + 1:02d} - {name:<10} {score}",
                     COLOR_WHITE,
                     (left_x, 230 + i * 34)
                 )
 
-        self.draw_text(
+        draw_text(
             screen,
             FONT_INFO_SIZE,
-            "ESC OU CLICK PARA VOLTAR",
+            TEXT_SCORE_BACK,
             COLOR_WHITE,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 30)
         )
@@ -233,7 +207,7 @@ class Menu:
     def draw_settings(self, screen):
         screen.blit(self.menu_bg, (0, 0))
 
-        self.draw_text(
+        draw_text(
             screen,
             FONT_TITLE_SIZE,
             "SETTINGS",
@@ -259,18 +233,18 @@ class Menu:
             selected=self.selected_setting == 1
         )
 
-        self.draw_text(
+        draw_text(
             screen,
             FONT_INFO_SIZE,
-            "UP/DOWN-SELECIONAR | LEFT/RIGHT-AJUSTAR | MOUSE-ARRASTAR",
+            TEXT_SETTINGS_HELP,
             COLOR_WHITE,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 75)
         )
 
-        self.draw_text(
+        draw_text(
             screen,
             FONT_INFO_SIZE,
-            "ESC / ENTER PARA VOLTAR",
+            TEXT_SETTINGS_BACK,
             COLOR_WHITE,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT - 30)
         )
@@ -278,7 +252,7 @@ class Menu:
     def draw_volume_slider(self, screen, label, volume, y, slider_y, selected):
         color = COLOR_SELECTED if selected else COLOR_WHITE
 
-        self.draw_text(
+        draw_text(
             screen,
             35,
             f"{label}: {int(volume * 100)}%",

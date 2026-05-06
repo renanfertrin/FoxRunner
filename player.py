@@ -1,23 +1,29 @@
 import os
 import pygame
 
+from entity import Entity
+
 from const import (
     GRAVITY,
     JUMP_FORCE,
     PLAYER_WIDTH,
     PLAYER_HEIGHT,
     PLAYER_X,
-    PLAYER_ANIMATION_SPEED
+    PLAYER_ANIMATION_SPEED,
+    PATH_CHARACTER_RUN,
+    PATH_CHARACTER_JUMP
 )
 
 
-class Player:
+class Player(Entity):
     def __init__(self, ground_y):
+        super().__init__()
+
         self.ground_y = ground_y
 
         self.animations = {
-            "run": self.load_images("assets/Images/character/run"),
-            "jump": self.load_images("assets/Images/character/jump"),
+            "run": self.load_images(PATH_CHARACTER_RUN),
+            "jump": self.load_images(PATH_CHARACTER_JUMP),
         }
 
         self.state = "run"
@@ -30,11 +36,11 @@ class Player:
         self.rect.x = PLAYER_X
         self.rect.bottom = self.ground_y
 
-        self.hitbox = self.rect.copy()
-
         self.velocity_y = 0
         self.jumps = 0
-        self.max_jumps = 2
+        self.max_jumps = 1
+
+        self.hitbox = self.rect.copy()
 
     def load_images(self, folder_path):
         images = []
@@ -43,8 +49,14 @@ class Player:
         for file in files:
             if file.endswith(".png"):
                 path = os.path.join(folder_path, file)
+
                 image = pygame.image.load(path).convert_alpha()
-                image = pygame.transform.scale(image, (PLAYER_WIDTH, PLAYER_HEIGHT))
+
+                image = pygame.transform.scale(
+                    image,
+                    (PLAYER_WIDTH, PLAYER_HEIGHT)
+                )
+
                 images.append(image)
 
         return images
@@ -54,6 +66,7 @@ class Player:
             self.velocity_y = JUMP_FORCE
             self.jumps += 1
             return True
+
         return False
 
     def update(self):
@@ -85,6 +98,7 @@ class Player:
                 self.frame_index = 0
 
             frame = self.animations["run"][int(self.frame_index)]
+
         else:
             total_frames = len(self.animations["jump"])
 
@@ -98,6 +112,7 @@ class Player:
 
         self.image = frame
         self.rect = self.image.get_rect()
+
         self.rect.x = old_x
         self.rect.bottom = old_bottom
 
@@ -105,14 +120,14 @@ class Player:
         self.hitbox = self.rect.copy()
 
         self.hitbox.inflate_ip(
-            -int(self.rect.width * 0.3),
-            -int(self.rect.height * 0.2)
+            -int(self.rect.width * 0.30),
+            -int(self.rect.height * 0.20)
         )
 
         self.hitbox.y += int(self.rect.height * 0.05)
 
     def draw(self, screen):
-        screen.blit(self.image, self.rect)
+        super().draw(screen)
 
-        # HITBOX DO PLAYER
-        pygame.draw.rect(screen, (255, 0, 0), self.hitbox, 2)
+        # DEBUG HITBOX
+        # self.draw_hitbox(screen)
