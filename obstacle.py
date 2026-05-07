@@ -74,5 +74,3 @@ class Obstacle(Entity):
     def draw(self, screen):
         super().draw(screen)
 
-        # DEBUG HITBOX
-        # self.draw_hitbox(screen)
